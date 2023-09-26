@@ -1,0 +1,862 @@
+---
+title: "Ken-Behrenia House Price"
+author: "Yu Heng Cheah"
+date: '2022-06-06'
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(dlookr)
+library(grid)
+library(gridExtra)
+library(MASS)
+
+train <- read.csv("train.csv", na.strings = "", header = TRUE)
+test <- read.csv("test.csv", na.strings = "", header = TRUE)
+
+```
+
+## Exploratory Data Analysis
+
+## Structure
+Before conducting the Exploratory Data Analysis, the data set was split into a training data set and testing data set, where 75% of the rows were random sampling in the training data set and the remaining 25% were put into the test set.
+
+Using str() function, we can find the structure of the training data set. The data set contains 30,000 observations and 15 variables.
+
+For the testing data set, the data set contains 10,000 observation with 13 variables. The two missing variables were 'price' and 'sent', which we will be using the training data set to create models to predict the variables in the testing data set.
+
+The data type for the variables id and sent is integer, price variable is numeric and the remaining variables are character. In order to continue with the exploration of the project, all variables with the type "character" are convert into "numeric" except the variables sent, year, built, reno, bedrooms, bathrooms and environ are convert into "factor". This is because the variables are categorical nominal with categorical data input.
+```{r}
+str(train)
+str(test)
+```
+
+Before converting the data type, sent, year, built, reno, bedrooms, bathrooms and environ are convert to numeric first to fill in the missing values. After filling in the missing values we then can convert the data type to factor. We do the same steps for the testing data set.
+```{r, include = FALSE}
+# Converting data type
+
+# Training data set
+train$sent <- as.numeric(train$sent)
+train$cond <- as.numeric(train$cond)
+train$year <- as.numeric(train$year)
+train$built <- as.numeric(train$built)
+train$lat <- as.numeric(train$lat)
+train$lon <- as.numeric(train$lon)
+train$sq.m.h <- as.numeric(train$sq.m.h)
+train$sq.m.block <- as.numeric(train$sq.m.block)
+train$sq.m.pool <- as.numeric(train$sq.m.pool)
+train$reno <- as.numeric(train$reno)
+train$bedrooms <- as.numeric(train$bedrooms)
+train$bathrooms <- as.numeric(train$bathrooms)
+train$environ <- as.numeric(train$environ)
+
+# Testing data set
+test$cond <- as.numeric(test$cond)
+test$year <- as.numeric(test$year)
+test$built <- as.numeric(test$built)
+test$lat <- as.numeric(test$lat)
+test$lon <- as.numeric(test$lon)
+test$sq.m.h <- as.numeric(test$sq.m.h)
+test$sq.m.block <- as.numeric(test$sq.m.block)
+test$sq.m.pool <- as.numeric(test$sq.m.pool)
+test$reno <- as.numeric(test$reno)
+test$bedrooms <- as.numeric(test$bedrooms)
+test$bathrooms <- as.numeric(test$bathrooms)
+test$environ <- as.numeric(test$environ)
+```
+
+```{r, include = FALSE}
+describe(train)
+describe(test)
+```
+
+## Plots
+sq.m.h, sq.m.block, sq.m.pool are  right-skewed by looking at the line plot, with mean to the right of the median.
+
+lat and lon are left-skewed by looking at the line graph, with the mean to the left of the median. There could be an extreme value on lat.
+
+Cond is approcimately normally distributed.
+
+Year and built are comb distribution, this may be contributed because year and built are categorical nominal data.
+
+Furthermore, reno, bedrooms, bathrooms and environ are multimodal distribution too due to the input are categorical nominal data.
+
+```{r, echo = FALSE}
+condplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(data = train, aes(x = cond), na.rm = TRUE)
+
+yearplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(aes(year))
+
+builtplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(aes(built))
+
+latplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(aes(lat))
+
+lonplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(aes(lon))
+
+smhplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(aes(sq.m.h))
+
+smbplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(aes(sq.m.block))
+
+smpplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(aes(sq.m.pool))
+
+renoplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(aes(reno))
+
+bedplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(aes(bedrooms))
+
+bathplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(aes(bathrooms))
+
+environplot <- 
+  train %>%
+  ggplot() + geom_freqpoly(aes(environ))
+
+grid.arrange(condplot, yearplot, builtplot, latplot, lonplot, smhplot, smbplot, smpplot, renoplot, bedplot, bathplot, environplot)
+```
+
+```{r, include=FALSE}
+# Converting data type into numeric (Train dataset)
+train$sent <- as.numeric(train$sent)
+train$cond <- as.numeric(train$cond)
+train$year <- as.numeric(train$year)
+train$built <- as.numeric(train$built)
+train$lat <- as.numeric(train$lat)
+train$lon <- as.numeric(train$lon)
+train$sq.m.h <- as.numeric(train$sq.m.h)
+train$sq.m.block <- as.numeric(train$sq.m.block)
+train$sq.m.pool <- as.numeric(train$sq.m.pool)
+train$reno <- as.numeric(train$reno)
+train$bedrooms <- as.numeric(train$bedrooms)
+train$bathrooms <- as.numeric(train$bathrooms)
+train$environ <- as.numeric(train$environ)
+
+# Converting data type into numeric (Test dataset)
+test$cond <- as.numeric(test$cond)
+test$year <- as.numeric(test$year)
+test$built <- as.numeric(test$built)
+test$lat <- as.numeric(test$lat)
+test$lon <- as.numeric(test$lon)
+test$sq.m.h <- as.numeric(test$sq.m.h)
+test$sq.m.block <- as.numeric(test$sq.m.block)
+test$sq.m.pool <- as.numeric(test$sq.m.pool)
+test$reno <- as.numeric(test$reno)
+test$bedrooms <- as.numeric(test$bedrooms)
+test$bathrooms <- as.numeric(test$bathrooms)
+test$environ <- as.numeric(test$environ)
+
+```
+
+
+## Filling in missing values
+For skewed covariates, such as lat, lon, sq.m.h, sq.m.block and sq.m.pool, median imputation is used tp replace missing values with the median. Due to the selected covariates are continuous variables that have skewed distributions, with median imputation, it can help to maintain the central tendency of the data.
+
+Mode imputation is used for year, built, reno, bedrooms, bathrooms and environ. To justify my choice, I used mode imputation to preserve the category with the highest occurrence.
+
+As the covariate, cond, is approximately normally distributed, mean imputation is used to replace the missing values with the mean of the data. 
+For the remaining covariates, id, price, and sent do not have any missing values, so no imputation methods were used.
+
+```{r, include = FALSE}
+# Mode function
+calc_mode <- function(x){
+  
+  # List the distinct / unique values
+  distinct_values <- unique(x)
+  
+  # Count the occurrence of each distinct value
+  distinct_tabulate <- tabulate(match(x, distinct_values))
+  
+  # Return the value with the highest occurrence
+  distinct_values[which.max(distinct_tabulate)]
+}
+
+### Train dataset
+train[is.na(train$year), "year"] <- calc_mode(train$year)
+train[is.na(train$built), "built"] <- calc_mode(train$built)
+train[is.na(train$reno), "reno"] <- calc_mode(train$reno)
+train[is.na(train$bedrooms), "bedrooms"] <- calc_mode(train$bedrooms)
+train[is.na(train$bathrooms), "bathrooms"] <- calc_mode(train$bathrooms)
+train[is.na(train$environ), "environ"] <- calc_mode(train$environ)
+
+
+meanCond <- mean(train$cond, na.rm = TRUE)
+train[is.na(train$cond), "cond"] <- meanCond
+
+medlat <- median(train$lat, na.rm = TRUE)
+train[is.na(train$lat), "lat"] <- medlat
+
+medlon <- median(train$lon, na.rm = TRUE)
+train[is.na(train$lon), "lon"] <- medlon
+
+medsmh <- median(train$sq.m.h, na.rm = TRUE)
+train[is.na(train$sq.m.h), "sq.m.h"] <- medsmh
+
+medsmb <- median(train$sq.m.block, na.rm = TRUE)
+train[is.na(train$sq.m.block), "sq.m.block"] <- medsmb
+
+medsmp <- median(train$sq.m.pool, na.rm = TRUE)
+train[is.na(train$sq.m.pool), "sq.m.pool"] <- medsmp
+
+
+### Test Dataset
+test[is.na(test$year), "year"] <- calc_mode(test$year)
+test[is.na(test$built), "built"] <- calc_mode(test$built)
+test[is.na(test$reno), "reno"] <- calc_mode(test$reno)
+test[is.na(test$bedrooms), "bedrooms"] <- calc_mode(test$bedrooms)
+test[is.na(test$bathrooms), "bathrooms"] <- calc_mode(test$bathrooms)
+test[is.na(test$environ), "environ"] <- calc_mode(test$environ)
+
+
+meanCondtest <- mean(test$cond, na.rm = TRUE)
+test[is.na(test$cond), "cond"] <- meanCondtest
+
+medlattest <- median(test$lat, na.rm = TRUE)
+test[is.na(test$lat), "lat"] <- medlattest
+
+medlontest <- median(test$lon, na.rm = TRUE)
+test[is.na(test$lon), "lon"] <- medlontest
+
+medsmhtest <- median(test$sq.m.h, na.rm = TRUE)
+test[is.na(test$sq.m.h), "sq.m.h"] <- medsmhtest
+
+medsmbtest <- median(test$sq.m.block, na.rm = TRUE)
+test[is.na(test$sq.m.block), "sq.m.block"] <- medsmbtest
+
+medsmptest <- median(test$sq.m.pool, na.rm = TRUE)
+test[is.na(test$sq.m.pool), "sq.m.pool"] <- medsmptest
+```
+
+```{r, include=FALSE}
+# Converting data type after filling in missing values (Train dataset)
+train$sent <- as.factor(train$sent)
+train$year <- as.factor(train$year)
+train$built <- as.factor(train$built)
+train$reno <- as.factor(train$reno)
+train$bedrooms <- as.factor(train$bedrooms)
+train$bathrooms <- as.factor(train$bathrooms)
+train$environ <- as.factor(train$environ)
+
+# Converting data type after filling in missing values (Test dataset)
+test$year <- as.factor(test$year)
+test$built <- as.factor(test$built)
+test$reno <- as.factor(test$reno)
+test$bedrooms <- as.factor(test$bedrooms)
+test$bathrooms <- as.factor(test$bathrooms)
+test$environ <- as.factor(test$environ)
+
+```
+
+## Correlation and Relationship
+There's no positive nor negative correlation but there's strong relationship between cond and price as data points are clustered tightly.
+
+Looking at the box plot between cond and sent, we see that there's an outlier where someone was very satisfied of the sale price after 6 months with a negative condition score. Inversely, there are some outliers with positive condition score that are not satisfied with the sale price. We also can tell that the worse the condition score, more people will not be satisfied with the sale price.
+
+```{r}
+coef(lm(price ~ cond, data = train))
+ggplot(data = train) +
+  geom_point(mapping = aes(x = cond, y = price)) + geom_abline(intercept = 0.24332531, slope = 0.02399454, col = "red") + ylab("Price") +xlab("Condition") + ggtitle("Distribution of Price by Condition")
+
+ggplot(data = train, mapping = aes(x = cond, y = sent)) +
+    geom_boxplot()+ ylab("Satisfaction Score") +xlab("Condition") + ggtitle("Box Plot of Satisfaction Score by Condition")
+```
+
+From the box plot below, we see that houses sold on year 2 and 3 have significant outliers having higher sold price.
+
+From the tile plot, starting from houses sold on year 9 to year 12, we noticed that there were a significant amount of observations that are not satisfied. Overall, we noticed that there were more observations that were not satisfied compared to satisfied.
+
+```{r}
+ggplot(data = train) +
+  geom_boxplot(mapping = aes(x = year, y = price))+ ylab("Price") +xlab("Year Sold") + ggtitle("Box Plot of Price by Year Sold")
+
+#reorder(year, price, FUN = median)
+
+train %>% 
+  count(sent, year) %>%  
+  ggplot(mapping = aes(x = year, y = sent)) +
+    geom_tile(mapping = aes(fill = n)) + ylab("Satisfaction Score") +xlab("Year Sold") + ggtitle("Tile Plot of Satisfaction Score by Year Sold")
+```
+
+From the box plot, it is based on the lowest median to the highest median price, house built on the 10th decade will have the highest median price, while house built of the 4th decade will have the lowest median price.
+
+From the tile plot, we observe that there's significant amount of observations are not satisfied no matter what decade the house was built.
+```{r}
+ggplot(data = train) +
+  geom_boxplot(mapping = aes(x = built, y = price)) + ylab("Price") +xlab("Decade Built") + ggtitle("Box Plot of Price by Decade Built")
+
+train %>% 
+  count(sent, built) %>%  
+  ggplot(mapping = aes(x = built, y = sent)) +
+    geom_tile(mapping = aes(fill = n)) + ylab("Satisfaction Score") +xlab("Decade Built") + ggtitle("Tile Plot of Satisfaction Score by Decade Built")
+```
+
+From the scatterplot, latitude between -1 and 1 has a strong relationship and clustered tightly. However, latitude less than -3 has a strong relationship and clustered tightly, having a significant gap from latitude between -1 and 1.
+
+From the boxplot, latitude under -3 has outliers of both 1 and 0 satisfaction score, which is expected.
+```{r}
+coef(lm(price ~ lat, data = train))
+ggplot(data = train) +
+  geom_point(mapping = aes(x = lat, y = price)) + geom_abline(intercept = 0.24, slope = 0.02, col = "red")+ ylab("Price") +xlab("Lat") + ggtitle("Scatterplot of Price by Lat")
+
+ggplot(data = train, mapping = aes(x = lat, y = sent)) +
+  geom_boxplot() + ylab("Satisfaction Score") +xlab("Lat") + ggtitle("Box Plot of Satisfaction Score by Lat")
+```
+
+Looking at scatterplot, longtitude has a similar plot with latitude with a significant gap from longtitude between 0 and 1. Longtitude between 0 and 1 and longtitude under -4 has a strong relationship and clustered tightly.
+
+From the boxplot, latitude under -4 has outliers of both 1 and 0 satisfaction score, similar to the previous box plot of lat.
+```{r}
+coef(lm(price ~ lon, data = train))
+ggplot(data = train) +
+  geom_point(mapping = aes(x = lon, y = price)) + geom_abline(intercept = 0.23, slope = -0.17, col = "red") + ylab("Price") +xlab("Lon") + ggtitle("Scatterplot of Price by Lon")
+
+ggplot(data = train, mapping = aes(x = lon, y = sent)) +
+  geom_boxplot() + ylab("Satisfaction Score") +xlab("Lon") + ggtitle("Box Plot of Satisfaction Score by Lon")
+```
+
+Looking at the scatterplot, we see that square meters of living space has a positive and stronger relationship with the price of house sold at. We see also that there's an outlier of having more than 2000 square meters of living space with price less than 5.0.
+
+Looking at the boxplot, it could be the same outlier observation is very satisfied with their purchase of the house.
+```{r}
+coef(lm(price ~ sq.m.h, data = train))
+ggplot(data = train) +
+  geom_point(mapping = aes(x = sq.m.h, y = price)) + geom_abline(intercept = -1.17, slope = 0.006, col = "red")+ ylab("Price") +xlab("Sq.m.h") + ggtitle("Scatterplot of Price by sq.m.h")
+
+ggplot(data = train, mapping = aes(x = sq.m.h, y = sent)) +
+  geom_boxplot()+ ylab("Satisfaction Score") +xlab("Sq.m.h") + ggtitle("Box Plot of Satisfaction Score by Sq.m.h")
+```
+
+From the scatterplot, there's not a positive relationship but a strong relationship between price and square meters of the lot size.
+
+From the boxplot, there exist outliers.
+```{r}
+coef(lm(price ~ sq.m.block, data = train))
+ggplot(data = train) +
+  geom_point(mapping = aes(x = sq.m.block, y = price)) + geom_abline(intercept = 0.21, slope = 0.00002, col = "red")+ ylab("Price") +xlab("Sq.m.block") + ggtitle("Scatterplot of Price by Sq.m.block")
+
+ggplot(data = train, mapping = aes(x = sq.m.block, y = sent)) +
+  geom_boxplot()+ ylab("Satisfaction Score") +xlab("Sq.m.block") + ggtitle("Box Plot of Satisfaction Score by Sq.m.block")
+```
+
+Observing the scatterplot, there's a strong and positive relationship between price and square meters of the pool size. There are two outliers, one more than 300 square meters of pool size and one between 200 and 300 square meters of pool size.
+
+Observing the boxplot, the outliers could be the same as the scatterplot between square meters of the pool size and satisfaction score. 
+```{r}
+coef(lm(price ~ sq.m.pool, data = train))
+ggplot(data = train) +
+  geom_point(mapping = aes(x = sq.m.pool, y = price)) + geom_abline(intercept = 0.08, slope = 0.006, col = "red")+ ylab("Price") +xlab("Sq.m.pool") + ggtitle("Scatterplot of Price by Sq.m.pool")
+
+ggplot(data = train, mapping = aes(x = sq.m.pool, y = sent)) +
+  geom_boxplot()+ ylab("Satisfaction Score") +xlab("Sq.m.pool") + ggtitle("Box Plot of Satisfaction Score by Sq.m.pool")
+```
+
+From the box plot, reno and price seem to be normal.
+
+Looking at the tile plot, we see that a significant amount of observations are not satisfied when the houses are not renovated. 
+```{r}
+ggplot(data = train) +
+  geom_boxplot(mapping = aes(x = reorder(reno, price, FUN = median), y = price))+ ylab("Price") +xlab("Renovation Score") + ggtitle("Box Plot of Price by Renovation Score")
+
+train %>% 
+  count(sent, reno) %>%  
+  ggplot(mapping = aes(x = reno, y = sent)) +
+    geom_tile(mapping = aes(fill = n))+ ylab("Satisfaction Score") +xlab("Renovation Score") + ggtitle("Tile Plot of Satisfaction Score by Renovation Score")
+```
+
+From the box plot, it seems that there's an outlier between number of bedrooms and price when there are 3 bedrooms.
+
+In the tile plot, a significant amount of observations indicating that houses with 3 to 4 bedrooms are not satisfied with the purchase.
+```{r}
+ggplot(data = train) +
+  geom_boxplot(mapping = aes(x = bedrooms, y = price))+ ylab("Price") +xlab("Number of Bedrooms") + ggtitle("Box Plot of Price by Number of Bedrooms")
+
+train %>% 
+  count(sent, bedrooms) %>%  
+  ggplot(mapping = aes(x = bedrooms, y = sent)) +
+    geom_tile(mapping = aes(fill = n)) + ylab("Satisfaction Score") +xlab("Number of Bedrooms") + ggtitle("Tile Plot of Satisfaction Score by Number of Bedrooms")
+```
+
+Observing the box plot, it seems that house with 0 bathroom exists an outlier between price and bathrooms.
+
+Looking at the tile plot, between 1 and 3 bathrooms, significant amount of observations are not satisfied with the purchase.
+```{r}
+ggplot(data = train) +
+  geom_boxplot(mapping = aes(x = bathrooms, y = price))+ ylab("Price") +xlab("Number of Bathrooms") + ggtitle("Box Plot of Price by Number of Bathrooms")
+
+train %>% 
+  count(sent, bathrooms) %>%  
+  ggplot(mapping = aes(x = bathrooms, y = sent)) +
+    geom_tile(mapping = aes(fill = n)) + ylab("Satisfaction Score") +xlab("Number of Bathrooms") + ggtitle("Tile Plot of Satisfaction Score by Number of Bathrooms")
+```
+
+Looking at the box plot, it seems to be normal and there are no significant observations require further research.
+
+In the tile plot, an environ score of 1 has a significant amount of observations that are not satisfied with the purchase.
+```{r}
+ggplot(data = train) +
+  geom_boxplot(mapping = aes(x = environ, y = price))+ ylab("Price") +xlab("Environment Score") + ggtitle("Box Plot of Price by Environment Score")
+
+train %>% 
+  count(sent, environ) %>%  
+  ggplot(mapping = aes(x = environ, y = sent)) +
+    geom_tile(mapping = aes(fill = n)) + ylab("Satisfaction Score") +xlab("Environment Score") + ggtitle("Tile Plot of Satisfaction Score by Environment Score")
+```
+
+## Correlation matrix
+Looking at the correlation matrix, with the method of pearson, we find that square meters of living space (sq.m.h) has a strong correlation with the price of the house sold with a value of 0.58.
+
+```{r}
+train %>% 
+  correlate() %>% 
+  plot() + xlab("Variables 1") + ylab("Variables 2") + ggtitle("Correlation Matrix (Method = Pearson)")
+```
+
+## Naive Predictions
+Are there more 1s than 0s for satisfaction score in the dataset?
+
+Calculating the mode for sent, there are more 0s compared to 1s.
+```{r}
+calc_mode(train$sent)
+```
+
+Are there more houses renovated compared to not renovated?
+
+After calculating the mode for reno, there are more houses that are not renovated.
+```{r}
+calc_mode(train$reno)
+```
+
+Is the price of the house sold higher when renovated?
+
+After calculating the mean price of the house when renovated, it is higher than houses that are not renovated.
+```{r}
+mean(train[train$reno == '0', 'price'])
+mean(train[train$reno == '1', 'price'])
+```
+
+## 3. Modelling Component 1
+
+First model: Multiple regression with backward selection method to select the best predictors 
+
+Backward selection method is chosen because forward selection method because of the so-called suppressor effects produced by the forward selection technique. Predictors are only significant when another predictor is maintained constant therefore these suppressor effects occur.
+
+With backward selection method, the best predictors for multiple regression include cond, year, built, lat, lon, sq.m.h, sq.m.block, sq.m.pool, bedrooms and bathrooms. Looking at step.model, sent can be disregarded as it is a dependent variable in this report. After removing sent, environ p-value is significantly more than 0.05, therefore can be disregarded as well.
+
+Mean Squared Error for this model is 0.4.
+```{r}
+# Fit the full model 
+full.model <- lm(price ~., data = train)
+# Stepwise regression model
+step.model <- stepAIC(full.model, direction = "backward", 
+                      trace = FALSE)
+anova(step.model)
+
+mr <- lm(price ~ cond + year + built + lat + lon + sq.m.h + sq.m.block + sq.m.pool + bedrooms + bathrooms, data = train)
+anova(mr)
+```
+
+Second model: Logistic Regression of Generalized Linear Model using k-fold cross validation with forward selection method based on the value of AIC.
+
+Using a 10-fold cross validation method for logistic regression of GLM, I find the best model consisting predictors cond, year, built, lat, lon, sq.m.h, sq.m.block, sq.m.pool, bedrooms, bathrooms and environ. Using forward selection method based on AIC, this model provides the lowest AIC possible of 51454. Predictors of reno and environ were not added as MSE and AIC have no changes towards MSE and no significant decrease of AIC.
+
+Mean Squared Error for this model is 0.3673.
+```{r}
+#Randomly shuffle the data
+yourData<-train[sample(nrow(train)),]
+
+#Create 10 equally size folds
+folds <- cut(seq(1,nrow(train)),breaks=10,labels=FALSE)
+
+set.seed(1)
+#Perform 10 fold cross validation
+for(i in 1:10){
+    
+    testIndexes <- which(folds==i,arr.ind=TRUE)
+    testData <- train[testIndexes, ]
+    trainData <- train[-testIndexes, ]
+    
+    model <- glm(price ~ cond + year + built + lat + lon + sq.m.h + sq.m.block + sq.m.pool + as.numeric(bedrooms) + as.numeric(bathrooms) + environ, data = trainData)
+    pred.test.glm <- predict(model, newdata = testData)
+    mse.out <- mean((testData$price - pred.test.glm)^2, na.rm = TRUE)
+}
+mse.out
+```
+
+Third Model: Lasso Regression with 10-fold cross validation
+
+Using alpha = 1 to fit lasso regression model. 10-fold cross validation method was used to find the best lambda value.
+
+Looking at best.model.lasso, no coefficient is shown for the predictor environ. This means that environ is completely dropped from the model because it wasn't influential enough.
+
+Mean Squared Error for this model is 0.4274.
+
+```{r}
+library(glmnet)
+
+y.lasso <- train$price
+
+x.lasso <- data.matrix(train[,c('cond','year','built','lat','lon','sq.m.h','sq.m.block','sq.m.pool','reno','bedrooms','bathrooms','environ')])
+
+cv.model.lasso <- cv.glmnet(x.lasso, y.lasso, alpha = 1)
+
+best.lambda.lasso <- cv.model.lasso$lambda.min
+best.lambda.lasso
+
+plot(cv.model.lasso)
+
+best.model.lasso <- glmnet(x.lasso, y.lasso, alpha = 1,lambda = best.lambda.lasso)
+coef(best.model.lasso)
+
+y.predicted.lasso <- predict(best.model.lasso, s = best.lambda.lasso, newx = x.lasso)
+
+mse.lasso <- mean((y.lasso - y.predicted.lasso)^2)
+mse.lasso
+
+```
+
+Fourth Model: Ridge Regression with 10 fold cross validation
+
+Using alpha = 0 to fit ridge regression model. 10-fold cross validation method was used to find the best lambda value.
+
+From this model, we see that sq.m.block is the least influential predictor in this model as it is the smallest value from coef(best.model.ridge). 
+
+Mean Squared Error for this model is 0.4359.
+```{r}
+library(glmnet)
+y.ridge <- train$price
+
+x.ridge <- data.matrix(train[,c('cond','year','built','lat','lon','sq.m.h','sq.m.block','sq.m.pool','reno','bedrooms','bathrooms','environ')])
+
+model.ridge <- glmnet(x.ridge, y.ridge, alpha = 0)
+summary(model.ridge)
+
+cv.model.ridge <- cv.glmnet(x.ridge, y.ridge, alpha = 0)
+
+best.lambda.ridge <- cv.model.ridge$lambda.min
+best.lambda.ridge
+
+plot(cv.model.ridge)
+
+best.model.ridge <- glmnet(x.ridge, y.ridge, alpha = 0, lambda = best.lambda.ridge)
+coef(best.model.ridge)
+
+plot(model.ridge, xvar = "lambda")
+
+y.predicted.ridge <- predict(best.model.ridge, s = best.lambda.ridge, newx = x.ridge)
+
+mse.ridge <- mean((y.ridge - y.predicted.ridge)^2)
+mse.ridge
+
+```
+
+
+Fifth Model: Principal Components Regression with 10-fold cross validation
+
+Looking at the plots, we see that in each plot, the model fit improves by adding more components, and the decrease of test RMSE is not that significant on adding one component from 33 components compared to 32 components to 33 components.
+
+Mean Squared Error for this model is 1.0323.
+```{r}
+library(pls)
+
+set.seed(1)
+
+pcr.model <- pcr(price ~ cond + year + built + lat + lon + sq.m.h + sq.m.block + sq.m.pool + reno + as.numeric(bedrooms) + as.numeric(bathrooms) + environ, data = train, scale = TRUE, validation = "CV")
+
+summary(pcr.model)
+
+#visualize cross-validation plots
+validationplot(pcr.model)
+validationplot(pcr.model, val.type="MSEP")
+validationplot(pcr.model, val.type="R2")
+
+#define training and testing sets
+train.pcr <- train[1:24000, c("cond", "year", "built", "lat", "lon", "sq.m.h","sq.m.block","sq.m.pool","reno","bedrooms","bathrooms","environ")]
+
+y.test.pcr <- train[24001:nrow(train), c("price")]
+
+test.pcr <- train[24001:nrow(train), c("cond", "year", "built", "lat", "lon", "sq.m.h","sq.m.block","sq.m.pool","reno","bedrooms","bathrooms","environ")]
+    
+#use model to make predictions on a test set
+pcr.model.pred <- pcr(price ~ cond + year + built + lat + lon + sq.m.h + sq.m.block + sq.m.pool + reno + as.numeric(bedrooms) + as.numeric(bathrooms) + environ, data = train, scale=TRUE, validation="CV")
+
+pcr.pred <- predict(pcr.model.pred, test.pcr, ncomp=2)
+
+#calculate MSE
+mse.pcr <- mean((pcr.pred - y.test.pcr)^2)
+mse.pcr
+
+```
+
+## Best Predictive Model for Modelling Component 1
+My Kaggle public name is YuHeng26.
+
+The best predictive model for Modelling Component 1 is the second model: Linear Regression of Generalized Linear Model. To justify my point, the criterion for the predictions is Mean Squared Error, the second model provides the lowest Mean Squared Error of 0.3673. This means that the prediction errors is the lowest, providing a better predictive model.
+```{r, results='hide'}
+test.price <- test
+glm.model.pred.value <- predict(model, newdata = test)
+test.price$price <- glm.model.pred.value
+
+
+glm.model.sub <- subset(test.price, select = c(id, price))
+write.csv(glm.model.sub, "C:\\Users\\Yu Heng\\Documents\\Archive\\ANU\\2022 SEM 1\\STAT3040\\Assignment 3\\glm_predicted_sent.csv", row.names = FALSE)
+```
+
+## 4. Modelling Component 2
+
+First model: Multiple regression with backward selection method
+
+To create lm model, the dependent variable cannot be factor, thus as.numeric function is used for sent. As price is a dependent variable, it can be removed in this model. After removing price, the best model is mr2, consists of year, built, lat, lon, sq.m.h, sq.m.block, sq.m.pool, reno, bedrooms, bathrooms and environ. The MSE is the lowest as well, 0.14.
+
+Correct Classification rate for this model is 0.7505.
+```{r}
+n <- nrow(train)
+K <- 10
+train.sample <- sample(1:n, n/10)
+
+
+set.seed(1)
+
+fold <- sample(rep(1:K , each=n/K))
+
+data.train <- train[fold != K,]
+data.test <- train[fold == K,]
+
+full.model.2 <- lm(as.numeric(sent) ~., data = train)
+
+step.model.2 <- stepAIC(full.model.2, direction = "backward", trace = FALSE)
+
+anova(step.model.2)
+
+mr2 <- lm(as.numeric(sent) ~ year + built + lat + lon + sq.m.h + sq.m.block + sq.m.pool + reno + bedrooms + bathrooms + environ, data = train)
+anova(mr2)
+
+p.hat.lm.2 <- predict(mr2, data.train[-train.sample,], type="response")
+y.hat.lm.2 <- rep(0, n/10)
+y.hat.lm.2[p.hat.lm.2 >= 0.5] <- 1
+y.lm.2 <- (data.train[-train.sample,]$sent == "1")*1
+
+table.lm.2 <- table(y.lm.2,y.hat.lm.2)
+accuracy_Test.lm.2 <- sum(diag(table.lm.2)) / sum(table.lm.2)
+
+accuracy_Test.lm.2
+```
+
+Second model: Logistic Regression of Generalized Linear Model using k-fold cross validation with forward selection method based on the value of AIC.
+
+The best predictors for this model are cond, built, lat, lon, sq.m.h, sq.m.block, sq.m.pool, reno, bedrooms, bathrooms and environ. The following predictors provide the lowest possible AIC of 23695 with MSE of 8.6633. The predictor year was not added into this model because it did not decrease the value of AIC. Forward selection method based on the value AIC was used.
+
+Correct Classification rate for this model is 0.7446.
+
+```{r}
+n <- nrow(train)
+train.sample <- sample(1:n, n/10)
+
+# K fold
+K <- 10
+
+##
+set.seed(1)
+fold <- sample(rep(1:K , each=n/K))
+
+##
+for (k in 1:K) {
+  
+  data.train <- train[fold != k,]
+  data.test <- train[fold == k,]
+  
+  glm.model.2 <- glm(sent ~ cond + built + lat + lon + sq.m.h + sq.m.block + sq.m.pool + reno + as.numeric(bedrooms) + as.numeric(bathrooms) + environ, family = binomial, data = data.train)
+  pred.test.glm.2 <- predict(glm.model.2, newdata = data.test)
+  mse.out2 <- mean((as.numeric(data.test$sent) - pred.test.glm.2)^2, na.rm = TRUE)
+
+}
+
+p.hat.glm.2 <- predict(glm.model.2, data.train[-train.sample,], type="response")
+y.hat.glm.2 <- rep(0, n/10)
+y.hat.glm.2[p.hat.glm.2 >= 0.5] <- 1
+y.glm.2 <- (data.train[-train.sample,]$sent == "1")*1
+
+## Confusion matrix
+table.glm.2 <- table(y.glm.2,y.hat.glm.2)
+accuracy_Test.glm.2 <- sum(diag(table.glm.2)) / sum(table.glm.2)
+accuracy_Test.glm.2
+
+```
+
+Third Model: Linear Discriminant Analysisn of 10-fold cross validation with backward elimination method
+
+Using backward elimination method for this LDA model, the best predictors are cond, year, built, lat, lon, sq.m.h, sq.m.pool, reno, bedrooms, bathrooms and environ. 
+
+Correct classification rate for this model is 0.8123 and AUC is 0.836.
+
+95% confidence interval for somewhat satisfied or not satisfied: [0.7471,0.7569]
+95% confidence interval for very satisfied: [0.2431,0.2529]
+```{r}
+library(MASS)
+library(caret)
+library(pROC)
+
+##
+set.seed(1)
+fold <- sample(rep(1:K , each=n/K))
+
+data.train.lda <- train[fold != k,]
+data.test.lda <- train[fold == k,]
+
+lda.model <- lda(sent ~ cond + year + built + lat + lon + sq.m.h + sq.m.pool + reno + bedrooms + bathrooms + environ, data = train)
+
+predictions <- predict(lda.model, data.test.lda)
+predictions.probs <- predictions$posterior[,2]
+predicted.classes <- predictions$class
+observed.classes <- data.test.lda$sent
+
+accuracy <- mean(observed.classes == predicted.classes)
+accuracy
+
+
+# Compute roc
+res.roc <- roc(observed.classes, predictions.probs)
+plot.roc(res.roc, print.auc = TRUE)
+
+# 95% confidence interval
+sent.size <- 30000
+p.0 <- 22561/30000
+p.1 <- 7439/30000
+
+margin.0 <- qnorm(0.975)*sqrt(p.0*(1-p.0)/sent.size)
+margin.1 <- qnorm(0.975)*sqrt(p.1*(1-p.1)/sent.size)
+
+lowerinterval.0 <- p.0 - margin.0
+lowerinterval.1 <- p.1 - margin.1
+
+upperinterval.0 <- p.0 + margin.0
+upperinterval.1 <- p.1 + margin.1
+
+```
+
+Fourth Model: Quadratic Discriminant Analysis of 10 fold cross validation with backward elimination method
+
+Using backward elimination method for this model, the best predictors are cond, year, lat, sq.m.h, sq.m.pool, reno, bedrooms and bathrooms. 
+
+Correct classification rate for this model is 0.7943 with AUC of 0.758.
+```{r}
+for (k in 1:K) {
+  
+  data.train.qda <- train[fold != k,]
+  data.test.qda <- train[fold == k,]
+  
+  qda.model <- qda(sent ~ cond + year + lat + sq.m.h + sq.m.pool + reno + as.numeric(bedrooms) + as.numeric(bathrooms), data = data.train.qda)
+  pred.test.qda <- predict(qda.model, newdata = data.test.qda)
+  pred.prob.qda <- pred.test.qda$posterior[,2]
+  pred.class.qda <- pred.test.qda$class
+  observed.classes.qda <- data.test.qda$sent
+  
+  accuracy.qda <- mean(observed.classes.qda == pred.class.qda)
+
+}
+accuracy.qda
+
+# Compute roc
+res.roc <- roc(observed.classes.qda, pred.prob.qda)
+plot.roc(res.roc, print.auc = TRUE)
+```
+
+Fifth Model: Decision Tree
+
+Splitting the data to 80/20, with 80 percent of the data serves to train the model, and 20 percent to make predictions.
+
+Looking at the confusion matrix, this model correctly predicted 4266 identities as not satisfied but classified 256 as satisfied. Furthermore, the model misclassified 904 identities as satisfied but it turned out that they are not satisfied.
+
+Changing all the parameters in the control, I find the best accuracy for this model is 0.8067.
+
+Correct classification rate for this model is 0.8067.
+```{r}
+library(rpart)
+library(rpart.plot)
+library(caret)
+
+n <- nrow(train)
+
+new.train <- subset(train, select = -c(price))
+
+total_row <- 0.8 * n
+train_sample <- 1:total_row
+data.train.tree <- new.train[train_sample, ]
+data.test.tree <- new.train[-train_sample, ]
+
+tree.fit <- rpart(sent~., data = data.train.tree, method = 'class')
+rpart.plot(tree.fit, extra = 106)
+
+accuracy_tune <- function(fit) {
+    predict_unseen <- predict(tree.fit, data.test.tree, type = 'class')
+    table_mat <- table(data.test.tree$sent, predict_unseen)
+    accuracy_Test <- sum(diag(table_mat)) / sum(table_mat)
+    accuracy_Test
+}
+
+control <- rpart.control(minsplit = 20,
+    minbucket = round(20 / 3),
+    maxdepth = 30,
+    cp = 0)
+tune_fit <- rpart(sent~., data = data.train.tree, method = 'class', control = control)
+accuracy_tune(tune_fit)
+
+# Predict using the tree model on the test data
+predictions <- predict(tree.fit, newdata = data.test.tree, type = "class")
+
+# Create the confusion matrix
+confusion_matrix <- confusionMatrix(predictions, data.test.tree$sent)
+print(confusion_matrix)
+```
+
+## Best Predictive Model for Modelling Component 2
+
+The best predictive model for Modelling Component 2 is the third model: Linear Discriminant Analysis. To justify my point, the criterion for the predictions is Correct Classification Rate, the third model provides the highest Correct Classification Rate of 0.8123. This means that the prediction accuracy is the highest, providing a better predictive model.
+
+```{r, results='hide'}
+test.sent <- test
+
+lda.model.pred.value <- predict(lda.model, newdata = test)
+prediction.lda.values <- lda.model.pred.value$x
+
+test_pred_lda <- factor(ifelse(prediction.lda.values > 0.5, "True", "False"))
+
+test.sent$sent <- test_pred_lda
+
+test.sent$sent <- recode_factor(test.sent$sent, 'False' = '0', 'True' = '1')
+test.sent$sent <- recode_factor(test.sent$sent, '0' = 0,  '1' = 1)
+
+
+lda.model.sub <- subset(test.sent, select = c(id, sent))
+write.csv(lda.model.sub,"C:\\Users\\Yu Heng\\Documents\\Archive\\ANU\\2022 SEM 1\\STAT3040\\Assignment 3\\lda_predicted_sent.csv",row.names = FALSE)
+```
+
+## Discussions and Limitations
+For this report, there are limitations when using single imputation. Single imputation value is treated as the true value and do not report the uncertainty towards the prediction of the missing values. To fill in the missing values of this dataset, multiple imputation method should be used as it is more advantageous. To justify my point, multiple imputation considers the variance estimation and interval estimation for the interested parameters. As multiple imputation method can be tedious, with the lack of great knowledge towards the multiple imputation method, single imputation was used in this report. 
+
+## Conclusions
+In conclusion, for both modelling components in this report, we find sq.m.h and bathrooms play an influential role on the predicted results. Several factors can determine the price of the house and the satisfaction score.
+
